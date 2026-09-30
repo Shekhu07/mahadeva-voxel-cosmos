@@ -965,6 +965,13 @@ const shock1=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),shockMat1);
 const shock2=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),shockMat2);
 shock1.visible=shock2.visible=false;
 scene.add(shock1,shock2);
+const destructionRing=new THREE.Mesh(
+  new THREE.RingGeometry(0.1,1,64),
+  new THREE.MeshBasicMaterial({color:0xff3300,transparent:true,opacity:0,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})
+);
+destructionRing.rotation.x=-Math.PI/2;
+destructionRing.visible=false;
+scene.add(destructionRing);
 let shockT1=-1,shockT2=-1;
 
 const BN=150;
@@ -1102,7 +1109,7 @@ document.getElementById('sndbtn').addEventListener('click',()=>{
   }catch(e){console.error('audio init failed:',e);}
 });
 
-let eyeTarget=0,eyeVal=0,bloomBoost=0,fovPunch=0,emberTimer=0,fxLatch=false;
+let eyeTarget=0,eyeVal=0,bloomBoost=0,fovPunch=0,emberTimer=0,fxLatch=false,destructionActive=false,destructionRadius=0;
 function awaken(){
   eyeTarget=eyeTarget>0.5?0:1;
   if(eyeTarget>0.5)fxLatch=false;
@@ -1180,6 +1187,53 @@ function animate(){
     playBell();
     eyeMarker.getWorldPosition(tmpV);
     spawnBurst(tmpV,80,5,13,-2.5);
+  }
+  if(!destructionActive&&eo>0.95){
+    destructionActive=true;
+    destructionRadius=0;
+    eyeMarker.getWorldPosition(tmpV);
+    spawnBurst(tmpV,120,40,80,-4);
+    playBell();
+    destructionRing.position.copy(tmpV);
+    destructionRing.scale.setScalar(0.1);
+    destructionRing.visible=true;
+    destructionRing.material.opacity=0.9;
+  }
+  if(destructionActive){
+    destructionRadius+=dt*450;
+    shiva.getWorldPosition(tmpV);
+    const dx=tmpV;
+    const destroy=(obj,minR=0)=>{
+      if(!obj)return;
+      const d=obj.position.distanceTo(dx);
+      if(d<destructionRadius+minR){
+        const f=1-Math.min(1,(d-minR)/Math.max(1,destructionRadius));
+        obj.scale.setScalar(Math.max(0.001,obj.scale.x*(1-f*0.15)));
+        if(obj.material)obj.material.opacity=Math.max(0,obj.material.opacity*(1-f*0.2));
+        if(obj.children)obj.children.forEach(c=>destroy(c,minR));
+      }
+    };
+    destroy(galaxySpin,800);
+    galaxySpins.forEach(gs=>destroy(gs.spin,600));
+    destroy(bandTilt,1200);
+    destroy(nebulaGroup,1500);
+    destroy(earth,50);
+    destroy(moonPivot,50);
+    destroy(giantRoot,100);
+    destroy(cometHeadCore,20);
+    destroy(cometHeadGlow,20);
+    destroy(cometTrail,20);
+    destroy(gangaPts,30);
+    destroy(splashPts,10);
+    destroy(motePts,10);
+    destroy(burstPts,10);
+    oms.forEach(o=>destroy(o.spr,5));
+    destructionRing.scale.setScalar(destructionRadius);
+    destructionRing.material.opacity=Math.max(0,0.9*(1-destructionRadius/3000));
+    if(destructionRadius>3000){
+      destructionActive=false;
+      destructionRing.visible=false;
+    }
   }
   if(eo>0.9){
     emberTimer-=dt;
