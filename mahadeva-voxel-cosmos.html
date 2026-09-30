@@ -1202,10 +1202,12 @@ function animate(){
   if(destructionActive){
     destructionRadius+=dt*450;
     shiva.getWorldPosition(tmpV);
-    const dx=tmpV;
+    const dx=tmpV.clone();
+    const tmpV2=new THREE.Vector3();
     const destroy=(obj,minR=0)=>{
       if(!obj)return;
-      const d=obj.position.distanceTo(dx);
+      obj.getWorldPosition(tmpV2);
+      const d=tmpV2.distanceTo(dx);
       if(d<destructionRadius+minR){
         const f=1-Math.min(1,(d-minR)/Math.max(1,destructionRadius));
         obj.scale.setScalar(Math.max(0.001,obj.scale.x*(1-f*0.15)));
